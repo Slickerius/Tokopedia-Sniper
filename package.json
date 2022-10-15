@@ -1,0 +1,22 @@
+{
+  "name": "tokped-sniper",
+  "author": "",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "heroku-postbuild": "curl -sf https://gobinaries.com/tj/node-prune | PREFIX=. sh&&./node-prune"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^12.5.1",
+    "dotenv": "^12.0.4",
+    "node-cron": "^3.0.2",
+    "puppeteer": "2.0.0"
+  },
+  "engines": {
+    "node": "12.x"
+  }
+}
