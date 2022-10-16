@@ -7,7 +7,7 @@ const cron = require('node-cron');
 const URL =`https://www.tokopedia.com/search?navsource=home&ob=9&source=universe&srp_component_id=01.02.01.01&st=product&q=kaset%20koes`;
 const STD_INTERVAL = 2000;
 const CARD_CLASS = `css-gfx8z3`;
-const CHANNEL_ID = `1030721224306872320`;
+const CHANNEL_ID = process.env.CHANNEL_ID;
 
 let browser;
 
