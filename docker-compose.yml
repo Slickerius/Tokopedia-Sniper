@@ -1,5 +1,29 @@
 version: '3'
 services:
-    app:
+    db:
+        image: mariadb:10.7
+        ports:
+            - 3306:3306
+        volumes:
+            - .data/mysql:/var/lib/mysql
+            - .db/init:/docker-entrypoint-initdb.d/:ro
+        environment:
+            - MYSQL_ROOT_PASSWORD=tokpedsniper
+            - MYSQL_PASSWORD=tokpedsniper
+            - MYSQL_USER=tokpedsniper
+            - MYSQL_DATABASE=tokpedsniper
+        networks:
+            internal:
+        # This command is required to set important mariadb defaults
+        command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --wait_timeout=28800, --log-warnings=0]
+    bot:
         build: bot
         env_file: bot/.env
+        networks:
+            default:
+            internal:
+    
+networks:
+    default:
+    internal:
+        internal: true
