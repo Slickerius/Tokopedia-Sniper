@@ -7,7 +7,6 @@ const cron = require(`node-cron`);
 
 const URL =`https://www.tokopedia.com/search?navsource=home&ob=9&source=universe&srp_component_id=01.02.01.01&st=product&q=kaset%20koes`;
 const STD_INTERVAL = 2000;
-const CARD_CLASS = `css-gfx8z3`;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
 const pool = mariadb.createPool({
@@ -101,7 +100,13 @@ const scrape = async () => {
     }
 	
 	// 70 items; 0-4 and 65-69 are ads
-    cardList = cardList.slice(5, 65);
+	let test = await page.$$(`.css-14xd9o5`);
+	let isPromotedStoreExists = (await page.$$(`.css-14xd9o5`)).length > 0;
+	if(isPromotedStoreExists) {
+		cardList = cardList.slice(8, 68);
+	} else {
+		cardList = cardList.slice(5, 65);
+	}
     
     let postMessage = ``;
     for(let card of cardList) {
