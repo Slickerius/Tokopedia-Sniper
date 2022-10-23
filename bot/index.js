@@ -4,10 +4,10 @@ const puppeteer = require(`puppeteer`);
 const mariadb = require(`mariadb`);
 const client = new Discord.Client();
 const cron = require(`node-cron`);
+const config = require('../config.json')
 
-const URL =`https://www.tokopedia.com/search?navsource=home&ob=9&source=universe&srp_component_id=01.02.01.01&st=product&q=kaset%20koes`;
+const URL = config.URL;
 const STD_INTERVAL = 2000;
-const CARD_CLASS = `css-gfx8z3`;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
 const pool = mariadb.createPool({
