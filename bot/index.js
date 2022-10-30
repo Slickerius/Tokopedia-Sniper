@@ -1,12 +1,14 @@
-// SiakNG Status Bot by sl0ck
 const Discord = require(`discord.js`);
 const puppeteer = require(`puppeteer`);
 const mariadb = require(`mariadb`);
 const client = new Discord.Client();
 const cron = require(`node-cron`);
-const config = require('../config.json')
+const config = require(`./config.json`)
 
 const URL = config.URL;
+const BLACKLIST = config.BLACKLIST;
+const SEARCH = config.SEARCH;
+let searchQueue = [];
 const STD_INTERVAL = 2000;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
@@ -27,11 +29,12 @@ let savedItems = [];
 const init = (async() => {
     browser = await puppeteer.launch({ headless: true,
               executablePath: process.env.CHROME_BIN || null,
-              args: [`--no-sandbox`, `--headless`, `--disable-gpu`, `--disable-dev-shm-usage`, 
+              args: [`--no-sandbox`, `--disable-gpu`, `--disable-dev-shm-usage`, 
               `--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36`,
               `--user-data-dir=/tmp/user_data/`,
               `--window-size=1200,800`,] });
-    scrape();
+	searchQueue = [...SEARCH];
+	scrape(searchQueue[0]);
 })();
 
 const checkItem = async(card) => {
@@ -63,12 +66,13 @@ const saveItem = async(card) => {
 	}
 };
 
-const scrape = async () => {
+const scrape = async (query) => {
     // const browser = await puppeteer.launch({ headless: false, args: [`--no-sandbox`,`--disable-setuid-sandbox`] });
+    console.log(`Scraping for query "${query}". . .`);
     const page = await browser.newPage();
 	let conn;
 
-    await page.goto(URL, {waitUntil: `load`});
+    await page.goto(URL + query, {waitUntil: `load`});
     await page.waitFor(STD_INTERVAL);
     
     // scroll down
@@ -110,17 +114,32 @@ const scrape = async () => {
 	}
     
     let postMessage = ``;
+
     for(let card of cardList) {
         let exists = await checkItem(card);
+		let filtered = false;
 		
-        if(!exists) {
+		for(let bannedToken of BLACKLIST) {
+			if(card[0].toLowerCase().includes(bannedToken)) {
+				console.log(`Filtered: ${card[0]}`);
+				filtered = true;
+				break;
+			}
+		}
+		
+        if(!exists && !filtered) {
             postChannel.send(`**New Item!**\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n\n**Image**: ${card[3]}`);
 			saveItem(card);
         }
     }
-    
+    	
     await page.close();
-    return true;
+	await page.waitFor(STD_INTERVAL);
+	
+	searchQueue.shift();
+    if(searchQueue.length > 0)
+		return scrape(searchQueue[0]);
+	return true;
 };
 
 client.on(`ready`, () => 
@@ -140,5 +159,7 @@ client.on(`ready`, () =>
 client.login(process.env.BOT_TOKEN);
 
 cron.schedule(`*/5 * * * *`, () => {
-    scrape();
+	console.log(`Starting periodic scraping. . .`);
+	searchQueue = [...SEARCH];
+	scrape(searchQueue[0]);
 });
