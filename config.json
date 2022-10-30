@@ -1,3 +1,5 @@
 {
-    "URL": "https://www.tokopedia.com/search?navsource=home&ob=9&source=universe&srp_component_id=01.02.01.01&st=product&q=kaset%20koes"
+    "URL": "https://www.tokopedia.com/search?navsource=home&ob=9&source=universe&srp_component_id=01.02.01.01&st=product&q=",
+	"CONFIG": ["hetty", "erwin"],
+	"SEARCH": ["kaset koes", "kaset naif"]
 }
