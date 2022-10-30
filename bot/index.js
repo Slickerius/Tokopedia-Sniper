@@ -8,6 +8,7 @@ const config = require(`./config.json`)
 const URL = config.URL;
 const BLACKLIST = config.BLACKLIST;
 const SEARCH = config.SEARCH;
+let searchQueue = [];
 const STD_INTERVAL = 2000;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
@@ -28,11 +29,12 @@ let savedItems = [];
 const init = (async() => {
     browser = await puppeteer.launch({ headless: true,
               executablePath: process.env.CHROME_BIN || null,
-              args: [`--no-sandbox`, `--headless`, `--disable-gpu`, `--disable-dev-shm-usage`, 
+              args: [`--no-sandbox`, `--disable-gpu`, `--disable-dev-shm-usage`, 
               `--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36`,
               `--user-data-dir=/tmp/user_data/`,
               `--window-size=1200,800`,] });
-    scrape();
+	searchQueue = SEARCH;
+	scrape(searchQueue[0]);
 })();
 
 const checkItem = async(card) => {
@@ -111,12 +113,14 @@ const scrape = async (query) => {
 	}
     
     let postMessage = ``;
+
     for(let card of cardList) {
         let exists = await checkItem(card);
 		let filtered = false;
 		
 		for(let bannedToken of BLACKLIST) {
 			if(card[0].toLowerCase().includes(bannedToken)) {
+				console.log(card[0]);
 				filtered = true;
 				break;
 			}
@@ -127,9 +131,14 @@ const scrape = async (query) => {
 			saveItem(card);
         }
     }
-    
+    	
     await page.close();
-    return true;
+	await page.waitFor(STD_INTERVAL);
+	
+	searchQueue.shift();
+    if(searchQueue.length > 0)
+		return scrape(searchQueue[0]);
+	return true;
 };
 
 client.on(`ready`, () => 
@@ -149,7 +158,6 @@ client.on(`ready`, () =>
 client.login(process.env.BOT_TOKEN);
 
 cron.schedule(`*/5 * * * *`, () => {
-	for(let query of SEARCH) {
-		scrape(query);
-	}
+	searchQueue = SEARCH;
+	scrape(searchQueue);
 });
