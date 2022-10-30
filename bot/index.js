@@ -7,6 +7,8 @@ const cron = require(`node-cron`);
 const config = require('../config.json')
 
 const URL = config.URL;
+const BLACKLIST = config.BLACKLIST;
+const SEARCH = config.SEARCH;
 const STD_INTERVAL = 2000;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
@@ -63,12 +65,12 @@ const saveItem = async(card) => {
 	}
 };
 
-const scrape = async () => {
+const scrape = async (query) => {
     // const browser = await puppeteer.launch({ headless: false, args: [`--no-sandbox`,`--disable-setuid-sandbox`] });
     const page = await browser.newPage();
 	let conn;
 
-    await page.goto(URL, {waitUntil: `load`});
+    await page.goto(URL + query, {waitUntil: `load`});
     await page.waitFor(STD_INTERVAL);
     
     // scroll down
@@ -112,8 +114,16 @@ const scrape = async () => {
     let postMessage = ``;
     for(let card of cardList) {
         let exists = await checkItem(card);
+		let filtered = false;
 		
-        if(!exists) {
+		for(let bannedToken of BLACKLIST) {
+			if(card[0].toLowerCase().includes(bannedToken)) {
+				filtered = true;
+				break;
+			}
+		}
+		
+        if(!exists && !filtered) {
             postChannel.send(`**New Item!**\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n\n**Image**: ${card[3]}`);
 			saveItem(card);
         }
@@ -140,5 +150,7 @@ client.on(`ready`, () =>
 client.login(process.env.BOT_TOKEN);
 
 cron.schedule(`*/5 * * * *`, () => {
-    scrape();
+	for(let query of SEARCH) {
+		scrape(query);
+	}
 });
