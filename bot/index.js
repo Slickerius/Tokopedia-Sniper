@@ -1,10 +1,9 @@
-// SiakNG Status Bot by sl0ck
 const Discord = require(`discord.js`);
 const puppeteer = require(`puppeteer`);
 const mariadb = require(`mariadb`);
 const client = new Discord.Client();
 const cron = require(`node-cron`);
-const config = require('../config.json')
+const config = require(`./config.json`)
 
 const URL = config.URL;
 const BLACKLIST = config.BLACKLIST;
