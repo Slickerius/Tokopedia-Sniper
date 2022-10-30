@@ -33,7 +33,7 @@ const init = (async() => {
               `--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36`,
               `--user-data-dir=/tmp/user_data/`,
               `--window-size=1200,800`,] });
-	searchQueue = SEARCH;
+	searchQueue = [...SEARCH];
 	scrape(searchQueue[0]);
 })();
 
@@ -68,6 +68,7 @@ const saveItem = async(card) => {
 
 const scrape = async (query) => {
     // const browser = await puppeteer.launch({ headless: false, args: [`--no-sandbox`,`--disable-setuid-sandbox`] });
+    console.log(`Scraping for query "${query}". . .`);
     const page = await browser.newPage();
 	let conn;
 
@@ -120,7 +121,7 @@ const scrape = async (query) => {
 		
 		for(let bannedToken of BLACKLIST) {
 			if(card[0].toLowerCase().includes(bannedToken)) {
-				console.log(card[0]);
+				console.log(`Filtered: ${card[0]}`);
 				filtered = true;
 				break;
 			}
@@ -158,6 +159,7 @@ client.on(`ready`, () =>
 client.login(process.env.BOT_TOKEN);
 
 cron.schedule(`*/5 * * * *`, () => {
-	searchQueue = SEARCH;
-	scrape(searchQueue);
+	console.log(`Starting periodic scraping. . .`);
+	searchQueue = [...SEARCH];
+	scrape(searchQueue[0]);
 });

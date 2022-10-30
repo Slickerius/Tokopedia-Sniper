@@ -1,5 +1,5 @@
 {
     "URL": "https://www.tokopedia.com/search?navsource=home&ob=9&source=universe&srp_component_id=01.02.01.01&st=product&q=",
-	"BLACKLIST": ["hetty", "erwin"],
+	"BLACKLIST": ["hetty", "erwin", "cd"],
 	"SEARCH": ["kaset koes", "kaset naif"]
 }
