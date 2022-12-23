@@ -2,6 +2,7 @@ version: '3'
 services:
     db:
         image: mariadb:10.7
+        restart: always
         ports:
             - 3306:3306
         volumes:
@@ -19,6 +20,7 @@ services:
     bot:
         build: bot
         env_file: bot/.env
+        restart: always
         networks:
             default:
             internal:
