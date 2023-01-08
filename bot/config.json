@@ -1,5 +1,5 @@
 {
     "URL": "https://www.tokopedia.com/search?navsource=home&ob=9&source=universe&srp_component_id=01.02.01.01&st=product&q=",
-    "BLACKLIST": ["hetty", "erwin", "cd"],
-    "SEARCH": ["kaset koes", "kaset naif", "kaset panbers", "kaset dara puspita", "kaset yockie", "kaset god bless"]
+    "BLACKLIST": ["hetty", "erwin", "cd", "vinyl"],
+    "SEARCH": ["kaset koes", "kaset naif", "kaset dara puspita", "kaset yockie", "kaset jockie", "kaset god bless", "kaset yopie item", "kaset harry roesli", "kaset radiohead", "kaset hidayat", "kaset oslan husein", "kaset benny soebardja", "kaset pramaqua", "kaset lclr", "kaset lomba cipta"]
 }
