@@ -143,12 +143,12 @@ const scrape = async (query) => {
 	}
 		
         if(!exists && !filtered) {
-            postChannel.send(`**New Item!**\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n\n**Image**: ${card[3]}`);
-			try {
-				saveItem(card);
-			} catch(e) {
-				console.log(`ERROR: ${e}`);
-			}
+            postChannel.send(`**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n\n**Image**: ${card[3]}`);
+	    try {
+		saveItem(card);
+	    } catch(e) {
+		console.log(`ERROR: ${e}`);
+	    }
         }
     }
         
@@ -177,7 +177,7 @@ client.on(`ready`, () =>
 
 client.login(process.env.BOT_TOKEN);
 
-cron.schedule(`0 */2 * * *`, () => {
+cron.schedule(`0,30 * * * *`, () => {
 	console.log(`Starting periodic scraping. . .`);
 	searchQueue = [...SEARCH];
 	scrape(searchQueue[0]);
