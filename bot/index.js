@@ -34,38 +34,38 @@ const init = (async() => {
               `--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36`,
               `--user-data-dir=/tmp/user_data/`,
               `--start-maximized`] });
-	console.log(await browser.userAgent());
-	searchQueue = [...SEARCH];
-	scrape(searchQueue[0]);
+    console.log(await browser.userAgent());
+    searchQueue = [...SEARCH];
+    scrape(searchQueue[0]);
 })();
 
 const checkItem = async(card) => {
-	let conn;
-	let ret = false;
-	
-	try {
-		conn = await pool.getConnection();
-		let res = await conn.query(`SELECT * FROM items WHERE name = ? AND price = ? AND url = ?`, [card[0], card[2], card[1]]);
-		ret = res.length > 0;
-	} catch (err) {
-		throw err;
-	} finally {
-		if(conn) conn.end();
-	}
+    let conn;
+    let ret = false;
+    
+    try {
+        conn = await pool.getConnection();
+        let res = await conn.query(`SELECT * FROM items WHERE name = ? AND price = ? AND url = ?`, [card[0], card[2], card[1]]);
+        ret = res.length > 0;
+    } catch (err) {
+        throw err;
+    } finally {
+        if(conn) conn.end();
+    }
 
-	return ret;
+    return ret;
 };
 
 const saveItem = async(card) => {
-	let conn;
-	try {
-		conn = await pool.getConnection();
-		let res = await conn.query(`INSERT INTO items (name, price, url) VALUES (?, ?, ?)`, [card[0], card[2], card[1]]);
-	} catch (err) {
-		throw err;
-	} finally {
-		if(conn) conn.end();
-	}
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        let res = await conn.query(`INSERT INTO items (name, price, url) VALUES (?, ?, ?)`, [card[0], card[2], card[1]]);
+    } catch (err) {
+        throw err;
+    } finally {
+        if(conn) conn.end();
+    }
 
 };
 
@@ -136,18 +136,18 @@ const scrape = async (query) => {
         let exists = await checkItem(card); // change to await checkItem(card);
         let filtered = false;
         for(let bannedToken of BLACKLIST) {
-			if(card[0].toLowerCase().includes(bannedToken)) {
-				console.log(`Filtered: ${card[0]}`);
-				filtered = true;
-				break;
-			}
+            if(card[0].toLowerCase().includes(bannedToken)) {
+                console.log(`Filtered: ${card[0]}`);
+                filtered = true;
+                break;
+            }
         }
 
         if(card[1].length > 512) {
             console.log(`Filtered: ${card[0]}`);
             filtered = true;
         }
-		
+        
         if(!exists && !filtered) {
             postChannel.send(`**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n\n**Image**: ${card[3]}`);
             try {
@@ -185,7 +185,7 @@ client.on(`ready`, () =>
 client.login(BOT_TOKEN);
 
 cron.schedule(`0,30 * * * *`, () => {
-	console.log(`Starting periodic scraping. . .`);
-	searchQueue = [...SEARCH];
-	scrape(searchQueue[0]);
+    console.log(`Starting periodic scraping. . .`);
+    searchQueue = [...SEARCH];
+    scrape(searchQueue[0]);
 });
