@@ -10,9 +10,10 @@ const BLACKLIST = config.BLACKLIST;
 const SEARCH = config.SEARCH;
 let searchQueue = [];
 const STD_INTERVAL = 2000;
-const CHANNEL_ID = process.env.CHANNEL_ID;
+const CHANNEL_ID = process.env.CHANNEL_ID; // change
+const BOT_TOKEN = process.env.BOT_TOKEN; // change
 
-const pool = mariadb.createPool({
+const pool = mariadb.createPool({ // change
     host: `db`, 
     user: `tokpedsniper`, 
     password: `tokpedsniper`,
@@ -32,7 +33,7 @@ const init = (async() => {
               args: [`--no-sandbox`, `--disable-gpu`, `--disable-dev-shm-usage`, 
               `--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36`,
               `--user-data-dir=/tmp/user_data/`,
-              `--window-size=1200,800`,] });
+              `--start-maximized`] });
 	console.log(await browser.userAgent());
 	searchQueue = [...SEARCH];
 	scrape(searchQueue[0]);
@@ -78,31 +79,37 @@ const scrape = async (query) => {
     await page.setUserAgent(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
     );
+    
+    await page.setViewport({ width: 1366, height: 768});
     await page.setDefaultNavigationTimeout(0);
     // await page.goto("https://webhook.site/442f7ed9-33db-4b5f-a6d8-56b72a1ca2a0", {waitUntil: `networkidle0`});
-    await page.goto(URL + query, {waitUntil: `networkidle0`});
-    await page.waitFor(STD_INTERVAL);
+
+    await page.goto(URL + query, {waitUntil: `load`});
+    await page.waitForTimeout(STD_INTERVAL);
 
     // const data = await page.evaluate(() => document.querySelector('*').outerHTML);
     // console.log(data);
-    
+
     // scroll down
     let lastHeight = await page.evaluate(`document.body.scrollHeight`);
     let it = 5;
     
     while(true) {
         await page.evaluate(`window.scrollTo(document.body.scrollWidth, document.body.scrollHeight / ${it})`);
-        await page.waitFor(STD_INTERVAL); // sleep a bit
+        await page.waitForTimeout(STD_INTERVAL); // sleep a bit
         let newHeight = await page.evaluate(`document.body.scrollHeight`);
         if(it > 0) it--;
         else break;
     }
     
-    await page.waitFor(STD_INTERVAL);
+    await page.waitForTimeout(STD_INTERVAL);
     
     const cardEls = await page.$$(`.pcv3__container`);
     let cardList = [];
     for(let cardEl of cardEls){
+        let cardIsAd = await cardEl.$(`.css-1gohnec`);
+        if(cardIsAd !== null) continue;
+        
         let cardInfo = await cardEl.$(`.pcv3__info-content`);
         let cardName = await page.evaluate(el => el.title, cardInfo);
         let cardURL = await page.evaluate(el => el.href, cardInfo); 
@@ -111,7 +118,8 @@ const scrape = async (query) => {
         cardImg = await page.evaluate(el => el.src, cardImg);
         
         let cardPrice = await cardEl.$(`.prd_link-product-price`);
-        cardPrice = await page.evaluate(el => el.innerHTML, cardPrice); 
+        cardPrice = await page.evaluate(el => el.innerHTML, cardPrice);
+        
         cardList.push([cardName, cardURL.split(`?`)[0], cardPrice, cardImg]);
     }
     
@@ -119,45 +127,44 @@ const scrape = async (query) => {
     let test = await page.$$(`.css-14xd9o5`);
     let isPromotedStoreExists = (await page.$$(`.css-14xd9o5`)).length > 0;
     if(isPromotedStoreExists) {
-        cardList = cardList.slice(8, 68);
-    } else {
-        cardList = cardList.slice(5, 65);
+        cardList = cardList.slice(3);
     }
     
     let postMessage = ``;
 
     for(let card of cardList) {
-        let exists = await checkItem(card);
+        let exists = await checkItem(card); // change to await checkItem(card);
         let filtered = false;
-	for(let bannedToken of BLACKLIST) {
+        for(let bannedToken of BLACKLIST) {
 			if(card[0].toLowerCase().includes(bannedToken)) {
 				console.log(`Filtered: ${card[0]}`);
 				filtered = true;
 				break;
 			}
-	}
+        }
 
-	if(card[1].length > 512) {
-             console.log(`Filtered: ${card[0]}`);
-             filtered = true;
-	}
+        if(card[1].length > 512) {
+            console.log(`Filtered: ${card[0]}`);
+            filtered = true;
+        }
 		
         if(!exists && !filtered) {
             postChannel.send(`**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n\n**Image**: ${card[3]}`);
-	    try {
-		saveItem(card);
-	    } catch(e) {
-		console.log(`ERROR: ${e}`);
-	    }
+            try {
+                saveItem(card); // change
+            } catch(e) {
+                console.log(`ERROR: ${e}`);
+            }
         }
     }
         
     await page.close();
-    await page.waitFor(STD_INTERVAL);
+    await page.waitForTimeout(STD_INTERVAL);
     await context.close();
     searchQueue.shift();
     if(searchQueue.length > 0)
         return scrape(searchQueue[0]);
+    
     return true;
 };
 
@@ -175,7 +182,7 @@ client.on(`ready`, () =>
     });
 });
 
-client.login(process.env.BOT_TOKEN);
+client.login(BOT_TOKEN);
 
 cron.schedule(`0,30 * * * *`, () => {
 	console.log(`Starting periodic scraping. . .`);
