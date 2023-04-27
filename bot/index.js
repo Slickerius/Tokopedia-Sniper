@@ -37,7 +37,7 @@ const init = (async() => {
     console.log(await browser.userAgent());
     searchQueue = [...SEARCH];
     scrape(searchQueue[0]);
-})();
+});
 
 const checkItem = async(card) => {
     let conn;
@@ -114,7 +114,7 @@ const scrape = async (query) => {
         let cardName = await page.evaluate(el => el.title, cardInfo);
         let cardURL = await page.evaluate(el => el.href, cardInfo); 
         
-        let cardImg = await cardEl.$(`.css-1c345mg`);
+        let cardImg = await cardEl.$(`.css-1q90pod`);
         cardImg = await page.evaluate(el => el.src, cardImg);
         
         let cardPrice = await cardEl.$(`.prd_link-product-price`);
@@ -124,11 +124,15 @@ const scrape = async (query) => {
     }
     
     // 70 items; 0-4 and 65-69 are ads
-    let test = await page.$$(`.css-14xd9o5`);
-    let isPromotedStoreExists = (await page.$$(`.css-14xd9o5`)).length > 0;
+    let isPromotedStoreExists = (await page.$$(`.css-1rzg7ys`)).length > 0;
     if(isPromotedStoreExists) {
         cardList = cardList.slice(3);
     }
+
+    // Do not include recommended items
+    let recommendationLabels = (await page.$$(`.css-1lekzkb`)).length;
+    if(recommendationLabels > 0)
+        cardList = cardList.slice(0, -1 * 5 * recommendationLabels);
     
     let postMessage = ``;
 
@@ -180,6 +184,8 @@ client.on(`ready`, () =>
         if(channel.id == CHANNEL_ID)
             postChannel = channel;
     });
+    
+    init();
 });
 
 client.login(BOT_TOKEN);
