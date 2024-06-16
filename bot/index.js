@@ -71,7 +71,7 @@ const saveItem = async(card) => {
 
 const scrape = async (query) => {
     // const browser = await puppeteer.launch({ headless: false, args: [`--no-sandbox`,`--disable-setuid-sandbox`] });
-    console.log(`Scraping for query "${query}". . .`);
+    console.log(`zzScraping for query "${query}". . .`);
     const context = await browser.createIncognitoBrowserContext();
     const page = await context.newPage();
     let conn;
@@ -104,21 +104,38 @@ const scrape = async (query) => {
     
     await page.waitForTimeout(STD_INTERVAL);
     
-    const cardEls = await page.$$(`.pcv3__container`);
+    const cardEls = await page.$$(`.YAEeaDkUOUIxPzURz6noDQ\\=\\=`);
+    
+    console.log(`cardEls ${cardEls}`);
+    
     let cardList = [];
     for(let cardEl of cardEls){
         let cardIsAd = await cardEl.$(`.css-1gohnec`);
         if(cardIsAd !== null) continue;
         
-        let cardInfo = await cardEl.$(`.pcv3__info-content`);
-        let cardName = await page.evaluate(el => el.title, cardInfo);
-        let cardURL = await page.evaluate(el => el.href, cardInfo); 
+        let cardInfo = await cardEl.$(`.LtzT2\\+1uM2newSaGKlnjAw\\=\\=`);
         
-        let cardImg = await cardEl.$(`.css-1q90pod`);
+        console.log(`cardInfo ${cardInfo}`);
+        
+        // let cardName = await page.evaluate(el => el.title, cardInfo);
+        // let cardURL = await page.evaluate(el => el.href, cardInfo); 
+        
+        let cardName = await cardEl.$(`.\\_4zuh5-h5tURvY6WpuPWQdA\\=\\=`);
+        cardName = await page.evaluate(el => el.innerHTML, cardName);
+        
+        let cardURL = await page.evaluate(el => el.href, cardEl);
+        
+        let cardImg = await cardEl.$(`.css-1c345mg`);
         cardImg = await page.evaluate(el => el.src, cardImg);
         
-        let cardPrice = await cardEl.$(`.prd_link-product-price`);
+        console.log(`cardName ${cardName}`);
+        console.log(`cardURL ${cardURL}`);
+        console.log(`cardImg ${cardImg}`);
+        
+        let cardPrice = await cardEl.$(`.KQib-amemtBlmDeX02RD6Q\\=\\=`);
         cardPrice = await page.evaluate(el => el.innerHTML, cardPrice);
+        
+        console.log(`cardPrice ${cardPrice}`);
         
         cardList.push([cardName, cardURL.split(`?`)[0], cardPrice, cardImg]);
     }
@@ -151,6 +168,11 @@ const scrape = async (query) => {
             console.log(`Filtered: ${card[0]}`);
             filtered = true;
         }
+
+	if(!query.split(' ').every(token => card[0].toLowerCase().includes(token))) {
+	    console.log(`Unrelated item filtered: ${card[0]}`);
+	    filtered = true;
+	}
         
         if(!exists && !filtered) {
             postChannel.send(`**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n\n**Image**: ${card[3]}`);
