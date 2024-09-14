@@ -177,7 +177,7 @@ const scrape = async (query) => {
       }
     }
 
-    if(card[1].length > 512 || card[0].length > 512) {
+    if(card[1].length > 512 || card[0].length > 256) {
       console.log(`Filtered: ${card[0]}`);
       filtered = true;
     }
