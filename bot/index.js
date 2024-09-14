@@ -140,8 +140,6 @@ const scrape = async (query) => {
     // let cardURL = await page.evaluate(el => el.href, cardInfo); 
     
     let cardName = await cardEl.$(config.CARD_NAME);
-    console.log(`CardName ${cardName}`);
-    console.log(`CardNameStr ${config.CARD_NAME}`);
     cardName = await page.evaluate(el => el.innerHTML, cardName);
     
     let cardURL = await page.evaluate(el => el.href, cardEl);
@@ -149,14 +147,8 @@ const scrape = async (query) => {
     let cardImg = await cardEl.$(config.CARD_IMG);
     cardImg = await page.evaluate(el => el.src, cardImg);
     
-    console.log(`cardName ${cardName}`);
-    console.log(`cardURL ${cardURL}`);
-    console.log(`cardImg ${cardImg}`);
-    
     let cardPrice = await cardEl.$(config.CARD_PRICE);
     cardPrice = await page.evaluate(el => el.innerHTML, cardPrice);
-    
-    console.log(`cardPrice ${cardPrice}`);
     
     cardList.push([cardName, cardURL.split(`?`)[0], cardPrice, cardImg]);
   }
@@ -185,7 +177,7 @@ const scrape = async (query) => {
       }
     }
 
-    if(card[1].length > 512) {
+    if(card[1].length > 512 || card[0].length > 512) {
       console.log(`Filtered: ${card[0]}`);
       filtered = true;
     }
@@ -231,7 +223,6 @@ client.on(`ready`, () => {
 });
 
 client.on(`message`, (message) => {
-  console.log(`${message.author.id}: ${JSON.stringify(message)}`);
   if (message.author.id !== OWNER_ID)
     return;
   const msg = message.content;
@@ -242,12 +233,9 @@ client.on(`message`, (message) => {
     return;
   }
   
-  console.log(`Not !refresh`);
   
   if (!msg.startsWith(`!set`))
     return;
-  
-  console.log(`!set triggered`);
   
   let msgArr = msg.split(` `);
   
