@@ -1,5 +1,9 @@
 {
     "URL": "https://www.tokopedia.com/search?navsource=home&ob=9&source=universe&srp_component_id=01.02.01.01&st=product&q=",
     "BLACKLIST": ["hetty", "erwin", "cd", "vinyl", "compact", "utopia"],
-    "SEARCH": ["kaset koes", "kaset dara puspita", "kaset soelih", "kaset god bless", "kaset yopie item", "kaset harry roesli", "kaset gombloh", "kaset hidayat", "kaset benny soebardja", "kaset pramaqua", "kaset guruh", "kaset pure saturday", "kaset mona sitompul", "kaset rien djamain"]
+    "SEARCH": ["kaset naif", "kaset superkid", "kaset lesmana", "kaset louise", "kaset yockie", "kaset fariz", "kaset giant step", "kaset baskoro", "kaset naniel", "kaset student power", "kaset rollies", "kaset ragadi", "nakamichi bx"],
+    "CARD_ELEMENT": ".Nq8NlC5Hk9KgVBJzMYBUsg\\=\\=",
+    "CARD_NAME": ".OWkG6oHwAppMn1hIBsC3pQ\\=\\=",
+    "CARD_IMG": ".css-1c345mg",
+    "CARD_PRICE": ".\\_8cR53N0JqdRc\\+mQCckhS0g\\=\\="
 }
