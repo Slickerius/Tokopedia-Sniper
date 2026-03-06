@@ -1,12 +1,24 @@
 const Discord = require(`discord.js`);
 const puppeteer = require(`puppeteer`);
 const mariadb = require(`mariadb`);
-const client = new Discord.Client();
+const { URL } = require('url');
+
+const { Client, GatewayIntentBits } = require(`discord.js`);
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
+});
+
+
 const cron = require(`node-cron`);
 const fs = require(`fs`);
 let config = require(`./config.json`);
 
-const URL = config.URL;
+const BASE_URL = config.URL;
 const BLACKLIST = config.BLACKLIST;
 const SEARCH = config.SEARCH;
 let searchQueue = [];
@@ -28,6 +40,40 @@ let browser;
 let postChannel;
 
 let savedItems = [];
+
+function convertToPermanentUrl(signedUrl) {
+  const CANONICAL_HOST = 'https://images.tokopedia.net';
+  const OLD_FORMAT_DATE = '1997/1/1';
+  const OLD_FORMAT_BUCKET = 'aphluv';
+
+  try {
+    const url = new URL(signedUrl);
+    const path = url.pathname;
+    let permanentUrl = signedUrl;
+
+    const newFormatRegex = /(\/img\/.*?\.(jpg|jpeg|webp|png))(\~tplv.*)?/i;
+    const newFormatMatch = path.match(newFormatRegex);
+
+    if (newFormatMatch) {
+      const assetPath = newFormatMatch[1]; 
+      permanentUrl = `${CANONICAL_HOST}${assetPath}`;
+    } else {
+      const oldFormatRegex = /\/([a-f0-9]{32})(\~tplv-.*)/i;
+      const oldFormatMatch = path.match(oldFormatRegex);
+      
+      if (oldFormatMatch) {
+        const assetId = oldFormatMatch[1]; 
+        permanentUrl = 
+          `${CANONICAL_HOST}/img/cache/1600-square/${OLD_FORMAT_BUCKET}/${OLD_FORMAT_DATE}/${assetId}~.jpeg.webp?ect=4g`;
+      }
+    }
+    
+    return permanentUrl;
+
+  } catch (error) {
+    return signedUrl; 
+  }
+}
 
 const init = (async() => {
   browser = await puppeteer.launch({ headless: true,
@@ -91,21 +137,21 @@ const scrape = async (query) => {
   console.log(`Refreshing configurations. . .`);
   config = require(`./config.json`);
   
-  console.log(`zzScraping for query "${query}". . .`);
+  console.log(`Scraping for query "${query}". . .`);
   
   const context = await browser.createIncognitoBrowserContext();
   const page = await context.newPage();
   let conn;
 
   await page.setUserAgent(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
   );
   
   await page.setViewport({ width: 1366, height: 768});
   await page.setDefaultNavigationTimeout(0);
   // await page.goto("https://webhook.site/442f7ed9-33db-4b5f-a6d8-56b72a1ca2a0", {waitUntil: `networkidle0`});
 
-  await page.goto(URL + query, {waitUntil: `load`});
+  await page.goto(BASE_URL + query, {waitUntil: `load`});
   await page.waitForTimeout(STD_INTERVAL);
 
   // const data = await page.evaluate(() => document.querySelector('*').outerHTML);
@@ -129,7 +175,7 @@ const scrape = async (query) => {
   
   let cardList = [];
   for(let cardEl of cardEls){
-    let cardIsAd = await cardEl.$(`.css-1gohnec`);
+    let cardIsAd = await cardEl.$(`.GnvFY01xBCRPQXkPKtn0wg\\=\\=`);
     if(cardIsAd !== null) continue;
     
     // let cardInfo = await cardEl.$(`.KeRtO-dE1UuZjZ6nmihLZw\\=\\=`);
@@ -149,7 +195,7 @@ const scrape = async (query) => {
     
     let cardPrice = await cardEl.$(config.CARD_PRICE);
     cardPrice = await page.evaluate(el => el.innerHTML, cardPrice);
-    
+
     cardList.push([cardName, cardURL.split(`?`)[0], cardPrice, cardImg]);
   }
   
@@ -165,6 +211,7 @@ const scrape = async (query) => {
     cardList = cardList.slice(0, -1 * 5 * recommendationLabels);
   
   let postMessage = ``;
+  console.log(`Found a total of ${cardList.length} items.`);
 
   for(let card of cardList) {
     let exists = await checkItem(card); // change to await checkItem(card);
@@ -177,16 +224,18 @@ const scrape = async (query) => {
       }
     }
 
-    if(card[1].length > 512 || card[0].length > 512) {
+    if(card[1].length > 512 || card[0].length > 256) {
       console.log(`Filtered: ${card[0]}`);
       filtered = true;
     }
 
-	if(!query.split(' ').every(token => card[0].toLowerCase().includes(token))) {
-	  console.log(`Unrelated item filtered: ${card[0]}`);
-	  filtered = true;
-	}
-    
+    if(!query.split(' ').every(token => card[0].toLowerCase().includes(token))) {
+      console.log(`Unrelated item filtered: ${card[0]}`);
+      filtered = true;
+    }
+
+    card[3] = convertToPermanentUrl(card[3]);
+
     if(!exists && !filtered) {
       postChannel.send(`**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n\n**Image**: ${card[3]}`);
       try {
