@@ -1,7 +1,7 @@
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import type { TextChannel } from "discord.js";
 import { loadStaticConfig, type Config } from "./config";
-import { getDynamicConfig, checkItem, saveItem } from "./db";
+import { getDynamicConfig, checkItem, saveItem, initQueue, claimQuery, completeQuery, reclaimStaleQueries } from "./db";
 import { sleep, convertToPermanentUrl } from "./utils";
 import type { Card } from "./types";
 
@@ -12,7 +12,6 @@ const USER_AGENT =
 
 export class Scraper {
   private browser: Browser | null = null;
-  private searchQueue: string[] = [];
   private isRunning = false;
 
   async init(): Promise<void> {
@@ -31,20 +30,27 @@ export class Scraper {
     console.log(`Using User-Agent ${await this.browser.userAgent()}`);
   }
 
-  startQueue(searches: string[], postChannel: TextChannel): void {
-    this.searchQueue = [...searches];
-    if (!this.isRunning) {
-      this.processQueue(postChannel);
+  async runQueue(queries: string[], postChannel: TextChannel): Promise<void> {
+    if (this.isRunning) {
+      console.log("Scrape already in progress, skipping.");
+      return;
     }
-  }
-
-  private async processQueue(postChannel: TextChannel): Promise<void> {
     this.isRunning = true;
-    while (this.searchQueue.length > 0) {
-      const query = this.searchQueue.shift()!;
-      await this.scrape(query, postChannel);
+    const cycle = Math.floor(Date.now() / 3600000);
+    try {
+      await initQueue(queries, cycle);
+      await reclaimStaleQueries(cycle);
+      console.log(`Cycle ${cycle}: queue initialized with ${queries.length} queries.`);
+      while (true) {
+        const query = await claimQuery(POD_ORIGIN, cycle);
+        if (!query) break;
+        await this.scrape(query, postChannel);
+        await completeQuery(query, cycle);
+      }
+      console.log(`Cycle ${cycle}: queue exhausted.`);
+    } finally {
+      this.isRunning = false;
     }
-    this.isRunning = false;
   }
 
   private async scrape(query: string, postChannel: TextChannel): Promise<void> {
@@ -83,7 +89,7 @@ export class Scraper {
       if (!exists && !this.isFiltered(card, query, config.BLACKLIST)) {
         card[3] = convertToPermanentUrl(card[3]);
         postChannel.send(
-          `**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n**Pod**: ${POD_ORIGIN}\n\n**Image**: ${card[3]}`
+          `**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n**Pod**: \`${POD_ORIGIN}\`\n\n**Image**: ${card[3]}`
         );
         try {
           await saveItem(card);
