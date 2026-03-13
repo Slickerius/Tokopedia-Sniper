@@ -17,10 +17,7 @@ spec:
     spec:
       containers:
         - name: bot
-          # Replace with your actual image after pushing:
-          # docker build -t ghcr.io/YOUR_USER/tokped-sniper:latest bot/
-          # docker push ghcr.io/YOUR_USER/tokped-sniper:latest
-          image: ghcr.io/YOUR_USER/tokped-sniper:latest
+          image: ghcr.io/slickerius/tokped-sniper:latest
           imagePullPolicy: Always
           env:
             # Downward API: gives pod its own name (bot-0, bot-1, ...)
