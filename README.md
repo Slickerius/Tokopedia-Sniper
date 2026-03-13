@@ -25,7 +25,8 @@ Tokopedia-Sniper/
 │   │       ├── index.ts          # Command interface + CommandHandler registry
 │   │       ├── refresh.ts        # !refresh — trigger immediate scrape
 │   │       └── set.ts            # !set — update CSS selectors live (writes to DB)
-│   ├── .env                      # Local credentials (not committed — see .env.example)
+│   ├── .env                      # Local credentials (not committed — copy from sample.env)
+│   ├── sample.env                # Template for all required env vars
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── Dockerfile
@@ -43,7 +44,6 @@ Tokopedia-Sniper/
 │       ├── statefulset.yaml      # Bot pods — shard index from pod ordinal
 │       └── networkpolicy.yaml    # Egress: DNS + MariaDB + internet (443)
 ├── docker-compose.yml            # Local dev — MariaDB + single bot instance
-├── .env.example                  # Template for all required env vars
 └── README.md
 ```
 
@@ -83,7 +83,7 @@ All commands are restricted to the `OWNER_ID`.
 Copy the env template and fill in your values:
 
 ```bash
-cp .env.example bot/.env
+cp bot/sample.env bot/.env
 ```
 
 Start MariaDB + bot locally:
@@ -101,7 +101,7 @@ cd bot && bun run dev
 
 ## Tech Stack
 
-| | |
+| Category | Technology |
 |---|---|
 | Runtime | [Bun](https://bun.sh) |
 | Language | TypeScript |
