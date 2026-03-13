@@ -1,11 +1,12 @@
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import type { TextChannel } from "discord.js";
-import { loadConfig, type Config } from "./config";
-import { checkItem, saveItem } from "./db";
+import { loadStaticConfig, type Config } from "./config";
+import { getDynamicConfig, checkItem, saveItem } from "./db";
 import { sleep, convertToPermanentUrl } from "./utils";
 import type { Card } from "./types";
 
 const STD_INTERVAL = 2000;
+const POD_ORIGIN = `${process.env.POD_NAME ?? "local"}@${process.env.NODE_NAME ?? "localhost"}`;
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36";
 
@@ -47,7 +48,9 @@ export class Scraper {
 
   private async scrape(query: string, postChannel: TextChannel): Promise<void> {
     console.log("Refreshing configurations...");
-    const config = loadConfig();
+    const staticConf = loadStaticConfig();
+    const dynamicConf = await getDynamicConfig();
+    const config: Config = { ...staticConf, ...dynamicConf };
 
     console.log(`Scraping for query "${query}"...`);
 
@@ -61,7 +64,6 @@ export class Scraper {
     await page.goto(config.URL + query, { waitUntil: "load" });
     await sleep(STD_INTERVAL);
 
-    // Scroll down gradually to trigger lazy-loaded content
     for (let it = 5; it > 0; it--) {
       await page.evaluate(
         `window.scrollTo(document.body.scrollWidth, document.body.scrollHeight / ${it})`
@@ -80,7 +82,7 @@ export class Scraper {
       if (!exists && !this.isFiltered(card, query, config.BLACKLIST)) {
         card[3] = convertToPermanentUrl(card[3]);
         postChannel.send(
-          `**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n\n**Image**: ${card[3]}`
+          `**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n**Pod**: ${POD_ORIGIN}\n\n**Image**: ${card[3]}`
         );
         try {
           await saveItem(card);
@@ -128,11 +130,9 @@ export class Scraper {
       cardList.push([name, url.split("?")[0], price, img]);
     }
 
-    // Slice off promoted store cards at the top
     const isPromotedStoreExists = (await page.$$(`.css-1rzg7ys`)).length > 0;
     const withoutPromoted = isPromotedStoreExists ? cardList.slice(3) : cardList;
 
-    // Do not include recommended items at the bottom
     const recommendationLabels = (await page.$$(`.css-1lekzkb`)).length;
     return recommendationLabels > 0
       ? withoutPromoted.slice(0, -1 * 5 * recommendationLabels)

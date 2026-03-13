@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bot
+  namespace: tokped-sniper
+spec:
+  serviceName: bot
+  # !! BOT_SHARD_COUNT below MUST equal this replicas value !!
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bot
+  template:
+    metadata:
+      labels:
+        app: bot
+    spec:
+      containers:
+        - name: bot
+          # Replace with your actual image after pushing:
+          # docker build -t ghcr.io/YOUR_USER/tokped-sniper:latest bot/
+          # docker push ghcr.io/YOUR_USER/tokped-sniper:latest
+          image: ghcr.io/YOUR_USER/tokped-sniper:latest
+          imagePullPolicy: Always
+          env:
+            # Downward API: gives pod its own name (bot-0, bot-1, ...)
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # Downward API: gives pod the node it's scheduled on
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            # !! Must equal spec.replicas above !!
+            - name: BOT_SHARD_COUNT
+              value: "2"
+            - name: BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: bot-secret
+                  key: BOT_TOKEN
+            - name: CHANNEL_ID
+              valueFrom:
+                secretKeyRef:
+                  name: bot-secret
+                  key: CHANNEL_ID
+            - name: OWNER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: bot-secret
+                  key: OWNER_ID
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bot-secret
+                  key: DB_PASSWORD
+          envFrom:
+            - configMapRef:
+                name: bot-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      imagePullSecrets:
+        - name: ghcr-secret   # created in setup step 9
