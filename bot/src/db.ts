@@ -129,7 +129,7 @@ export const claimQuery = async (pod: string, cycle: number): Promise<string | n
   try {
     await conn.beginTransaction();
     const rows: { query: string }[] = await conn.query(
-      "SELECT query FROM query_queue WHERE cycle = ? AND status = 'pending' LIMIT 1 FOR UPDATE SKIP LOCKED",
+      "SELECT query FROM query_queue WHERE cycle = ? AND status = 'pending' ORDER BY RAND() LIMIT 1 FOR UPDATE SKIP LOCKED",
       [cycle]
     );
     if (rows.length === 0) {

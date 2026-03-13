@@ -89,7 +89,7 @@ export class Scraper {
       if (!exists && !this.isFiltered(card, query, config.BLACKLIST)) {
         card[3] = convertToPermanentUrl(card[3]);
         postChannel.send(
-          `**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n**Pod**: ${POD_ORIGIN}\n\n**Image**: ${card[3]}`
+          `**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n**Pod**: \`${POD_ORIGIN}\`\n\n**Image**: ${card[3]}`
         );
         try {
           await saveItem(card);
