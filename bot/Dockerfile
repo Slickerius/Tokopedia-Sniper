@@ -1,8 +1,8 @@
-FROM node:24-alpine AS base
+FROM oven/bun:alpine AS base
 
 ENV CHROME_BIN="/usr/bin/chromium-browser" \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"
-	
+
 RUN set -x \
     && apk update \
     && apk upgrade \
@@ -13,6 +13,6 @@ RUN set -x \
 
 WORKDIR /usr/src/app
 COPY . .
-RUN npm install
+RUN bun install --frozen-lockfile
 
-CMD ["node", "index"]
+CMD ["bun", "run", "src/index.ts"]
