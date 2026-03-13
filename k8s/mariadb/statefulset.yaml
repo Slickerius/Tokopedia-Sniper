@@ -14,6 +14,8 @@ spec:
       labels:
         app: mariadb
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: vps-01
       containers:
         - name: mariadb
           image: mariadb:10.11

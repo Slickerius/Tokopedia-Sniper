@@ -6,7 +6,7 @@ metadata:
 spec:
   serviceName: bot
   # !! BOT_SHARD_COUNT below MUST equal this replicas value !!
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: bot
@@ -15,6 +15,13 @@ spec:
       labels:
         app: bot
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: bot
+              topologyKey: kubernetes.io/hostname
       containers:
         - name: bot
           image: ghcr.io/slickerius/tokped-sniper:latest
@@ -32,7 +39,7 @@ spec:
                   fieldPath: spec.nodeName
             # !! Must equal spec.replicas above !!
             - name: BOT_SHARD_COUNT
-              value: "2"
+              value: "3"
             - name: BOT_TOKEN
               valueFrom:
                 secretKeyRef:
