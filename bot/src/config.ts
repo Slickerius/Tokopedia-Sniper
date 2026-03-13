@@ -1,14 +1,17 @@
-import { readFileSync, writeFileSync } from "fs";
-
-export interface Config {
+export interface StaticConfig {
   URL: string;
   BLACKLIST: string[];
   SEARCH: string[];
+}
+
+export interface DynamicConfig {
   CARD_ELEMENT: string;
   CARD_NAME: string;
   CARD_IMG: string;
   CARD_PRICE: string;
 }
+
+export type Config = StaticConfig & DynamicConfig;
 
 export const SETTABLE_KEYS = [
   "CARD_ELEMENT",
@@ -19,10 +22,8 @@ export const SETTABLE_KEYS = [
 
 export type SettableKey = (typeof SETTABLE_KEYS)[number];
 
-const CONFIG_PATH = "./config.json";
-
-export const loadConfig = (): Config =>
-  JSON.parse(readFileSync(CONFIG_PATH, "utf-8")) as Config;
-
-export const saveConfig = (config: Config): void =>
-  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 4));
+export const loadStaticConfig = (): StaticConfig => ({
+  URL: process.env.SEARCH_URL!,
+  BLACKLIST: JSON.parse(process.env.BLACKLIST ?? "[]"),
+  SEARCH: JSON.parse(process.env.SEARCH ?? "[]"),
+});

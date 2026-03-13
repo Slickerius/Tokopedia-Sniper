@@ -6,7 +6,7 @@ import {
   type Message,
 } from "discord.js";
 import cron from "node-cron";
-import { loadConfig } from "./config";
+import { loadStaticConfig } from "./config";
 import { initDb } from "./db";
 import { Scraper } from "./scraper";
 import { CommandHandler } from "./commands/index";
@@ -22,7 +22,11 @@ export class Bot {
   private readonly commandHandler: CommandHandler;
   private postChannel: TextChannel | null = null;
 
-  constructor(private readonly scraper: Scraper) {
+  constructor(
+    private readonly scraper: Scraper,
+    private readonly shardIndex: number = 0,
+    private readonly shardCount: number = 1,
+  ) {
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
@@ -33,7 +37,7 @@ export class Bot {
 
     this.commandHandler = new CommandHandler().register(
       new RefreshCommand(() => this.triggerScrape()),
-      new SetCommand()
+      new SetCommand(),
     );
 
     this.client.on("ready", () => this.onReady());
@@ -71,8 +75,10 @@ export class Bot {
       console.error("postChannel not set — cannot start scrape.");
       return;
     }
-    const { SEARCH } = loadConfig();
-    this.scraper.startQueue(SEARCH, this.postChannel);
+    const { SEARCH } = loadStaticConfig();
+    const shard = SEARCH.filter((_, i) => i % this.shardCount === this.shardIndex);
+    console.log(`Shard ${this.shardIndex + 1}/${this.shardCount}: handling ${shard.length} of ${SEARCH.length} queries.`);
+    this.scraper.startQueue(shard, this.postChannel);
   }
 
   private setupCron(): void {
