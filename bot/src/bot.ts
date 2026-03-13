@@ -22,11 +22,7 @@ export class Bot {
   private readonly commandHandler: CommandHandler;
   private postChannel: TextChannel | null = null;
 
-  constructor(
-    private readonly scraper: Scraper,
-    private readonly shardIndex: number = 0,
-    private readonly shardCount: number = 1,
-  ) {
+  constructor(private readonly scraper: Scraper) {
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
@@ -76,9 +72,7 @@ export class Bot {
       return;
     }
     const { SEARCH } = loadStaticConfig();
-    const shard = SEARCH.filter((_, i) => i % this.shardCount === this.shardIndex);
-    console.log(`Shard ${this.shardIndex + 1}/${this.shardCount}: handling ${shard.length} of ${SEARCH.length} queries.`);
-    this.scraper.startQueue(shard, this.postChannel);
+    this.scraper.runQueue(SEARCH, this.postChannel);
   }
 
   private setupCron(): void {

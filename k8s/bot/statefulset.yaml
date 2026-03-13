@@ -1,11 +1,9 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: bot
   namespace: tokped-sniper
 spec:
-  serviceName: bot
-  # !! BOT_SHARD_COUNT below MUST equal this replicas value !!
   replicas: 3
   selector:
     matchLabels:
@@ -27,19 +25,14 @@ spec:
           image: ghcr.io/slickerius/tokped-sniper:latest
           imagePullPolicy: Always
           env:
-            # Downward API: gives pod its own name (bot-0, bot-1, ...)
             - name: POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            # Downward API: gives pod the node it's scheduled on
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            # !! Must equal spec.replicas above !!
-            - name: BOT_SHARD_COUNT
-              value: "3"
             - name: BOT_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -71,4 +64,4 @@ spec:
               memory: "512Mi"
               cpu: "500m"
       imagePullSecrets:
-        - name: ghcr-secret   # created in setup step 9
+        - name: ghcr-secret
