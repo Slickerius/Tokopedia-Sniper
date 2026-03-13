@@ -40,7 +40,7 @@ export class Bot {
       new SetCommand(),
     );
 
-    this.client.on("ready", () => this.onReady());
+    this.client.on("clientReady", () => this.onReady());
     this.client.on("messageCreate", (msg) => this.onMessage(msg));
 
     this.setupCron();

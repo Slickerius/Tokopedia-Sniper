@@ -18,6 +18,7 @@ export class Scraper {
   async init(): Promise<void> {
     this.browser = await puppeteer.launch({
       headless: true,
+      timeout: 120000,
       executablePath: process.env.CHROME_BIN ?? undefined,
       args: [
         "--no-sandbox",
