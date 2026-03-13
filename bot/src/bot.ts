@@ -82,7 +82,7 @@ export class Bot {
   }
 
   private setupCron(): void {
-    cron.schedule("0,30 * * * *", () => {
+    cron.schedule("0 * * * *", () => {
       console.log("Starting periodic scraping...");
       this.triggerScrape();
     });
