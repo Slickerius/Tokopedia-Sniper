@@ -41,7 +41,7 @@ Tokopedia-Sniper/
 │   └── bot/
 │       ├── secret.yaml           # Discord credentials
 │       ├── configmap.yaml        # SEARCH, BLACKLIST, URL, CSS selector defaults
-│       ├── statefulset.yaml      # Bot pods — shard index from pod ordinal
+│       ├── deployment.yaml       # Bot pods — centralized MariaDB work queue
 │       └── networkpolicy.yaml    # Egress: DNS + MariaDB + internet (443)
 ├── docker-compose.yml            # Local dev — MariaDB + single bot instance
 └── README.md
