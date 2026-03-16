@@ -12,7 +12,8 @@ const USER_AGENT =
 
 export class Scraper {
   private browser: Browser | null = null;
-  private isRunning = false;
+  private runStartedAt: number | null = null;
+  private static readonly RUN_TIMEOUT_MS = 55 * 60 * 1000; // 55 minutes
 
   async init(): Promise<void> {
     this.browser = await puppeteer.launch({
@@ -31,11 +32,15 @@ export class Scraper {
   }
 
   async runQueue(queries: string[], postChannel: TextChannel): Promise<void> {
-    if (this.isRunning) {
+    const isStale = this.runStartedAt !== null && Date.now() - this.runStartedAt > Scraper.RUN_TIMEOUT_MS;
+    if (this.runStartedAt !== null && !isStale) {
       console.log("Scrape already in progress, skipping.");
       return;
     }
-    this.isRunning = true;
+    if (isStale) {
+      console.warn("Previous scrape exceeded 55 minutes — forcing restart.");
+    }
+    this.runStartedAt = Date.now();
     const cycle = Math.floor(Date.now() / 3600000);
     try {
       await initQueue(queries, cycle);
@@ -49,7 +54,7 @@ export class Scraper {
       }
       console.log(`Cycle ${cycle}: queue exhausted.`);
     } finally {
-      this.isRunning = false;
+      this.runStartedAt = null;
     }
   }
 
