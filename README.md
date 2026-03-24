@@ -30,22 +30,11 @@ Tokopedia-Sniper/
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── Dockerfile
-├── k8s/
-│   ├── namespace.yaml
-│   ├── mariadb/
-│   │   ├── secret.yaml           # DB credentials
-│   │   ├── configmap.yaml        # MariaDB server config (charset, timeouts)
-│   │   ├── statefulset.yaml      # MariaDB pod + PVC
-│   │   ├── service.yaml          # ClusterIP (internal only)
-│   │   └── networkpolicy.yaml    # Only bot pods may reach port 3306
-│   └── bot/
-│       ├── secret.yaml           # Discord credentials
-│       ├── configmap.yaml        # SEARCH, BLACKLIST, URL, CSS selector defaults
-│       ├── deployment.yaml       # Bot pods — centralized MariaDB work queue
-│       └── networkpolicy.yaml    # Egress: DNS + MariaDB + internet (443)
 ├── docker-compose.yml            # Local dev — MariaDB + single bot instance
 └── README.md
 ```
+
+Kubernetes manifests have moved to [sl0ck-k8s](https://github.com/Slickerius/sl0ck-k8s).
 
 ---
 
@@ -55,7 +44,7 @@ Config is split by how it changes:
 
 | Field | Where | How to change |
 |---|---|---|
-| `SEARCH`, `BLACKLIST`, `URL` | Env var / K8s ConfigMap | Edit ConfigMap + redeploy |
+| `SEARCH`, `BLACKLIST`, `URL` | Env var / K8s ConfigMap | Edit ConfigMap in [sl0ck-k8s](https://github.com/Slickerius/sl0ck-k8s) + redeploy |
 | `CARD_ELEMENT`, `CARD_NAME`, `CARD_IMG`, `CARD_PRICE` | MariaDB `config` table | `!set` in Discord (no restart needed) |
 
 CSS selector defaults are seeded into the DB on first run from `CARD_*_DEFAULT` env vars (`INSERT IGNORE` — won't overwrite values already in the DB).
