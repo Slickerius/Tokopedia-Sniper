@@ -1,46 +1,47 @@
-import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import type { TextChannel } from "discord.js";
-import { loadStaticConfig, type Config } from "./config";
-import { getDynamicConfig, checkItem, saveItem, initQueue, claimQuery, completeQuery, reclaimStaleQueries } from "./db";
-import { sleep, convertToPermanentUrl } from "./utils";
+import { loadStaticConfig } from "./config";
+import { checkItem, saveItem, initQueue, claimQuery, completeQuery, reclaimStaleQueries } from "./db";
+import { convertToPermanentUrl } from "./utils";
 import type { Card } from "./types";
 
-const STD_INTERVAL = 2000;
 const POD_ORIGIN = `${process.env.POD_NAME ?? "local"}@${process.env.NODE_NAME ?? "localhost"}`;
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36";
 
-export class Scraper {
-  private browser: Browser | null = null;
-  private runStartedAt: number | null = null;
-  private static readonly RUN_TIMEOUT_MS = 55 * 60 * 1000; // 55 minutes
+const GQL_ENDPOINT = "https://gql.tokopedia.com/graphql/SearchProductV5Query";
 
-  async init(): Promise<void> {
-    this.browser = await puppeteer.launch({
-      headless: true,
-      timeout: 120000,
-      executablePath: process.env.CHROME_BIN ?? undefined,
-      args: [
-        "--no-sandbox",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--user-data-dir=/tmp/user_data/",
-        "--start-maximized",
-      ],
-    });
-    console.log(`Using User-Agent ${await this.browser.userAgent()}`);
+const SEARCH_QUERY = `query SearchProductV5Query($params: String!) {
+  searchProductV5(params: $params) {
+    header { totalData responseCode }
+    data {
+      products {
+        name
+        url
+        price { text }
+        mediaURL { image }
+        ads { id }
+      }
+    }
   }
+}`;
+
+interface GqlProduct {
+  name: string;
+  url: string;
+  price: { text: string };
+  mediaURL: { image: string };
+  ads: { id: string | null };
+}
+
+export class Scraper {
+  private running = false;
 
   async runQueue(queries: string[], postChannel: TextChannel): Promise<void> {
-    const isStale = this.runStartedAt !== null && Date.now() - this.runStartedAt > Scraper.RUN_TIMEOUT_MS;
-    if (this.runStartedAt !== null && !isStale) {
+    if (this.running) {
       console.log("Scrape already in progress, skipping.");
       return;
     }
-    if (isStale) {
-      console.warn("Previous scrape exceeded 55 minutes — forcing restart.");
-    }
-    this.runStartedAt = Date.now();
+    this.running = true;
     const cycle = Math.floor(Date.now() / 3600000);
     try {
       await initQueue(queries, cycle);
@@ -54,42 +55,25 @@ export class Scraper {
       }
       console.log(`Cycle ${cycle}: queue exhausted.`);
     } finally {
-      this.runStartedAt = null;
+      this.running = false;
     }
   }
 
   private async scrape(query: string, postChannel: TextChannel): Promise<void> {
-    console.log("Refreshing configurations...");
-    const staticConf = loadStaticConfig();
-    const dynamicConf = await getDynamicConfig();
-    const config: Config = { ...staticConf, ...dynamicConf };
-
+    const config = loadStaticConfig();
     console.log(`Scraping for query "${query}"...`);
 
-    const context = await this.browser!.createBrowserContext();
-    const page = await context.newPage();
+    const products = await this.fetchProducts(query);
+    console.log(`Found a total of ${products.length} items.`);
 
-    await page.setUserAgent(USER_AGENT);
-    await page.setViewport({ width: 1366, height: 768 });
-    await page.setDefaultNavigationTimeout(0);
+    for (const product of products) {
+      const card: Card = [
+        product.name,
+        product.url.split("?")[0],
+        product.price.text,
+        product.mediaURL.image,
+      ];
 
-    await page.goto(config.URL + query, { waitUntil: "load" });
-    await sleep(STD_INTERVAL);
-
-    for (let it = 5; it > 0; it--) {
-      await page.evaluate(
-        `window.scrollTo(document.body.scrollWidth, document.body.scrollHeight / ${it})`
-      );
-      await sleep(STD_INTERVAL);
-    }
-
-    await sleep(STD_INTERVAL);
-
-    const cardList = await this.extractCards(page, config);
-
-    console.log(`Found a total of ${cardList.length} items.`);
-
-    for (const card of cardList) {
       const exists = await checkItem(card);
       if (!exists && !this.isFiltered(card, query, config.BLACKLIST)) {
         card[3] = convertToPermanentUrl(card[3]);
@@ -103,52 +87,41 @@ export class Scraper {
         }
       }
     }
-
-    await page.close();
-    await context.close();
   }
 
-  private async extractCards(page: Page, config: Config): Promise<Card[]> {
-    const cardEls = await page.$$(config.CARD_ELEMENT);
-    const cardList: Card[] = [];
+  private async fetchProducts(query: string): Promise<GqlProduct[]> {
+    const params = `device=desktop&ob=9&page=1&q=${encodeURIComponent(query)}&rows=200&safe_search=false&source=search&st=product&start=0`;
 
-    for (const cardEl of cardEls) {
-      const cardIsAd = await cardEl.$(".GnvFY01xBCRPQXkPKtn0wg\\=\\=");
-      if (cardIsAd !== null) continue;
+    const res = await fetch(GQL_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": USER_AGENT,
+        "Origin": "https://www.tokopedia.com",
+        "Referer": "https://www.tokopedia.com/",
+        "X-Source": "tokopedia-lite",
+        "X-Device": "desktop-0.0",
+        "X-Tkpd-Lite-Service": "zeus",
+      },
+      body: JSON.stringify([
+        {
+          operationName: "SearchProductV5Query",
+          variables: { params },
+          query: SEARCH_QUERY,
+        },
+      ]),
+    });
 
-      const cardNameEl = await cardEl.$(config.CARD_NAME);
-      const name: string = await page.evaluate(
-        (el) => (el as HTMLElement).innerHTML,
-        cardNameEl
-      );
-
-      const url: string = await page.evaluate(
-        (el) => (el as HTMLAnchorElement).href,
-        cardEl
-      );
-
-      const cardImgEl = await cardEl.$(config.CARD_IMG);
-      const img: string = await page.evaluate(
-        (el) => (el as HTMLImageElement).src,
-        cardImgEl
-      );
-
-      const cardPriceEl = await cardEl.$(config.CARD_PRICE);
-      const price: string = await page.evaluate(
-        (el) => (el as HTMLElement).innerHTML,
-        cardPriceEl
-      );
-
-      cardList.push([name, url.split("?")[0], price, img]);
+    if (!res.ok) {
+      console.error(`GraphQL request failed: ${res.status} ${res.statusText}`);
+      return [];
     }
 
-    const isPromotedStoreExists = (await page.$$(`.css-1rzg7ys`)).length > 0;
-    const withoutPromoted = isPromotedStoreExists ? cardList.slice(3) : cardList;
+    const json = await res.json() as [{ data: { searchProductV5: { data: { products: GqlProduct[] } } } }];
+    const products = json[0]?.data?.searchProductV5?.data?.products ?? [];
 
-    const recommendationLabels = (await page.$$(`.css-1lekzkb`)).length;
-    return recommendationLabels > 0
-      ? withoutPromoted.slice(0, -1 * 5 * recommendationLabels)
-      : withoutPromoted;
+    // Filter out ads
+    return products.filter((p) => !p.ads?.id);
   }
 
   private isFiltered(card: Card, query: string, blacklist: string[]): boolean {

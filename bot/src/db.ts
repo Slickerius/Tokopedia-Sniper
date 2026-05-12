@@ -1,6 +1,5 @@
 import { createPool } from "mariadb";
 import type { Card } from "./types";
-import type { DynamicConfig, SettableKey } from "./config";
 
 const pool = createPool({
   host: process.env.DB_HOST ?? "db",
@@ -22,12 +21,6 @@ export const initDb = async (): Promise<void> => {
       )
     `);
     await conn.query(`
-      CREATE TABLE IF NOT EXISTS config (
-        \`key\` VARCHAR(64) PRIMARY KEY,
-        value TEXT NOT NULL
-      )
-    `);
-    await conn.query(`
       CREATE TABLE IF NOT EXISTS query_queue (
         cycle BIGINT NOT NULL,
         query VARCHAR(512) NOT NULL,
@@ -37,45 +30,7 @@ export const initDb = async (): Promise<void> => {
         PRIMARY KEY (cycle, query)
       )
     `);
-    // Seed CSS selector defaults on first run only (INSERT IGNORE respects existing values)
-    const defaults: [SettableKey, string][] = [
-      ["CARD_ELEMENT", process.env.CARD_ELEMENT_DEFAULT ?? ""],
-      ["CARD_NAME",    process.env.CARD_NAME_DEFAULT    ?? ""],
-      ["CARD_IMG",     process.env.CARD_IMG_DEFAULT     ?? ""],
-      ["CARD_PRICE",   process.env.CARD_PRICE_DEFAULT   ?? ""],
-    ];
-    for (const [key, value] of defaults) {
-      await conn.query(
-        "INSERT IGNORE INTO config (`key`, value) VALUES (?, ?)",
-        [key, value]
-      );
-    }
     console.log("Database initialized.");
-  } finally {
-    conn.end();
-  }
-};
-
-export const getDynamicConfig = async (): Promise<DynamicConfig> => {
-  const conn = await pool.getConnection();
-  try {
-    const rows: { key: string; value: string }[] = await conn.query(
-      "SELECT `key`, value FROM config WHERE `key` IN (?, ?, ?, ?)",
-      ["CARD_ELEMENT", "CARD_NAME", "CARD_IMG", "CARD_PRICE"]
-    );
-    return Object.fromEntries(rows.map((r) => [r.key, r.value])) as unknown as DynamicConfig;
-  } finally {
-    conn.end();
-  }
-};
-
-export const setConfigValue = async (key: SettableKey, value: string): Promise<void> => {
-  const conn = await pool.getConnection();
-  try {
-    await conn.query(
-      "INSERT INTO config (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?",
-      [key, value, value]
-    );
   } finally {
     conn.end();
   }
@@ -106,7 +61,7 @@ export const saveItem = async (card: Card): Promise<void> => {
   }
 };
 
-// Inserts all queries for the current cycle (INSERT IGNORE — safe for concurrent calls).
+// Inserts all queries for the current cycle (INSERT IGNORE - safe for concurrent calls).
 // Deletes rows from cycles older than the previous one.
 export const initQueue = async (queries: string[], cycle: number): Promise<void> => {
   const conn = await pool.getConnection();

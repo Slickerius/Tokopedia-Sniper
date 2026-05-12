@@ -11,7 +11,6 @@ import { initDb } from "./db";
 import { Scraper } from "./scraper";
 import { CommandHandler } from "./commands/index";
 import { RefreshCommand } from "./commands/refresh";
-import { SetCommand } from "./commands/set";
 
 const CHANNEL_ID = process.env.CHANNEL_ID!;
 const BOT_TOKEN = process.env.BOT_TOKEN!;
@@ -33,7 +32,6 @@ export class Bot {
 
     this.commandHandler = new CommandHandler().register(
       new RefreshCommand(() => this.triggerScrape()),
-      new SetCommand(),
     );
 
     this.client.on("clientReady", () => this.onReady());
@@ -57,7 +55,7 @@ export class Bot {
     this.postChannel =
       (await this.client.channels.fetch(CHANNEL_ID).catch(() => null)) as TextChannel | null;
 
-    await Promise.all([initDb(), this.scraper.init()]);
+    await initDb();
     this.triggerScrape();
   }
 
