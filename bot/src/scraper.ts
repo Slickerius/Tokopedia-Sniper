@@ -92,36 +92,42 @@ export class Scraper {
   private async fetchProducts(query: string): Promise<GqlProduct[]> {
     const params = `device=desktop&ob=9&page=1&q=${encodeURIComponent(query)}&rows=200&safe_search=false&source=search&st=product&start=0`;
 
-    const res = await fetch(GQL_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": USER_AGENT,
-        "Origin": "https://www.tokopedia.com",
-        "Referer": "https://www.tokopedia.com/",
-        "X-Source": "tokopedia-lite",
-        "X-Device": "desktop-0.0",
-        "X-Tkpd-Lite-Service": "zeus",
-      },
-      body: JSON.stringify([
-        {
-          operationName: "SearchProductV5Query",
-          variables: { params },
-          query: SEARCH_QUERY,
+    try {
+      const res = await fetch(GQL_ENDPOINT, {
+        method: "POST",
+        signal: AbortSignal.timeout(30000),
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": USER_AGENT,
+          "Origin": "https://www.tokopedia.com",
+          "Referer": "https://www.tokopedia.com/",
+          "X-Source": "tokopedia-lite",
+          "X-Device": "desktop-0.0",
+          "X-Tkpd-Lite-Service": "zeus",
         },
-      ]),
-    });
+        body: JSON.stringify([
+          {
+            operationName: "SearchProductV5Query",
+            variables: { params },
+            query: SEARCH_QUERY,
+          },
+        ]),
+      });
 
-    if (!res.ok) {
-      console.error(`GraphQL request failed: ${res.status} ${res.statusText}`);
+      if (!res.ok) {
+        console.error(`GraphQL request failed: ${res.status} ${res.statusText}`);
+        return [];
+      }
+
+      const json = await res.json() as [{ data: { searchProductV5: { data: { products: GqlProduct[] } } } }];
+      const products = json[0]?.data?.searchProductV5?.data?.products ?? [];
+
+      // Filter out ads
+      return products.filter((p) => !p.ads?.id);
+    } catch (e) {
+      console.error(`Fetch failed for query "${query}": ${e}`);
       return [];
     }
-
-    const json = await res.json() as [{ data: { searchProductV5: { data: { products: GqlProduct[] } } } }];
-    const products = json[0]?.data?.searchProductV5?.data?.products ?? [];
-
-    // Filter out ads
-    return products.filter((p) => !p.ads?.id);
   }
 
   private isFiltered(card: Card, query: string, blacklist: string[]): boolean {
