@@ -74,7 +74,7 @@ export class Bot {
   }
 
   private setupCron(): void {
-    cron.schedule("0 * * * *", () => {
+    cron.schedule("*/5 * * * *", () => {
       console.log("Starting periodic scraping...");
       this.triggerScrape();
     });
