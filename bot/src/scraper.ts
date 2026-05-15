@@ -5,6 +5,7 @@ import { convertToPermanentUrl } from "./utils";
 import type { Card } from "./types";
 
 const POD_ORIGIN = `${process.env.POD_NAME ?? "local"}@${process.env.NODE_NAME ?? "localhost"}`;
+const GQL_PROXY = process.env.GQL_PROXY || undefined;
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36";
 
@@ -96,6 +97,7 @@ export class Scraper {
       const res = await fetch(GQL_ENDPOINT, {
         method: "POST",
         signal: AbortSignal.timeout(30000),
+        proxy: GQL_PROXY,
         headers: {
           "Content-Type": "application/json",
           "User-Agent": USER_AGENT,
