@@ -7,6 +7,12 @@ const pool = createPool({
   password: process.env.DB_PASSWORD ?? "tokpedsniper",
   database: process.env.DB_NAME ?? "tokpedsniper",
   connectionLimit: 5,
+  // The driver default is 1000ms, which is a JS timer. MariaDB lives on the
+  // VPS while the bot can be scheduled onto a busy node, and CPU throttling
+  // there stalls the event loop long enough to expire that timer before the
+  // handshake lands, crashing the pod on a link that is actually fine.
+  connectTimeout: 15000,
+  acquireTimeout: 30000,
 });
 
 export const initDb = async (): Promise<void> => {
