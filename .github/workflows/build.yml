@@ -1,8 +1,16 @@
-name: Build and Push
+name: Build and Deploy
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-tokped-sniper
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/slickerius/tokped-sniper
 
 jobs:
   build:
@@ -23,4 +31,41 @@ jobs:
         with:
           context: bot/
           push: true
-          tags: ghcr.io/slickerius/tokped-sniper:latest
+          # The SHA tag is what makes rollback possible; :latest is kept
+          # so anything pulling by that name still works.
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: azure/setup-kubectl@v4
+
+      - name: Configure cluster access
+        env:
+          KUBE_SERVER: ${{ secrets.KUBE_SERVER }}
+          KUBE_CA: ${{ secrets.KUBE_CA }}
+          KUBE_TOKEN: ${{ secrets.KUBE_TOKEN }}
+        run: |
+          echo "$KUBE_CA" > "$RUNNER_TEMP/ca.crt"
+          kubectl config set-cluster k3s \
+            --server="$KUBE_SERVER" \
+            --certificate-authority="$RUNNER_TEMP/ca.crt" \
+            --embed-certs=true
+          kubectl config set-credentials deployer --token="$KUBE_TOKEN"
+          kubectl config set-context k3s \
+            --cluster=k3s --user=deployer --namespace=tokped-sniper
+          kubectl config use-context k3s
+
+      - name: Roll out ${{ github.sha }}
+        run: |
+          # Pinning the digest-stable SHA tag rather than restarting on
+          # :latest, so the cluster reports exactly which commit is live.
+          kubectl set image deployment/bot bot=$IMAGE:$GITHUB_SHA
+          kubectl rollout status deployment/bot --timeout=5m
