@@ -2,7 +2,8 @@ import type { TextChannel } from "discord.js";
 import { loadStaticConfig } from "./config";
 import { checkItem, saveItem, initQueue, claimQuery, completeQuery, reclaimStaleQueries } from "./db";
 import { convertToPermanentUrl } from "./utils";
-import type { Card } from "./types";
+import { fetchShopeeProducts } from "./biggo";
+import type { Card, NormalizedProduct } from "./types";
 
 const POD_ORIGIN = `${process.env.POD_NAME ?? "local"}@${process.env.NODE_NAME ?? "localhost"}`;
 const GQL_PROXY = process.env.GQL_PROXY || undefined;
@@ -64,33 +65,42 @@ export class Scraper {
     const config = loadStaticConfig();
     console.log(`Scraping for query "${query}"...`);
 
-    const products = await this.fetchProducts(query);
-    console.log(`Found a total of ${products.length} items.`);
+    const sources: [string, NormalizedProduct[]][] = [
+      ["Tokopedia", await this.fetchTokopediaProducts(query)],
+      ["Shopee", await fetchShopeeProducts(query)],
+    ];
 
-    for (const product of products) {
-      const card: Card = [
-        product.name,
-        product.url.split("?")[0],
-        product.price.text,
-        product.mediaURL.image,
-      ];
-
-      const exists = await checkItem(card);
-      if (!exists && !this.isFiltered(card, query, config.BLACKLIST)) {
-        card[3] = convertToPermanentUrl(card[3]);
-        postChannel.send(
-          `**New Item!**\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n**Pod**: \`${POD_ORIGIN}\`\n\n**Image**: ${card[3]}`
-        );
-        try {
-          await saveItem(card);
-        } catch (e) {
-          console.error(`ERROR saving item: ${e}`);
-        }
+    for (const [source, products] of sources) {
+      console.log(`${source}: found ${products.length} items for "${query}".`);
+      for (const product of products) {
+        await this.processProduct(product, source, query, postChannel, config.BLACKLIST);
       }
     }
   }
 
-  private async fetchProducts(query: string): Promise<GqlProduct[]> {
+  private async processProduct(
+    product: NormalizedProduct,
+    source: string,
+    query: string,
+    postChannel: TextChannel,
+    blacklist: string[]
+  ): Promise<void> {
+    const card: Card = [product.name, product.url, product.price, product.image];
+
+    const exists = await checkItem(card);
+    if (exists || this.isFiltered(card, query, blacklist)) return;
+
+    postChannel.send(
+      `**New Item!**\n**Source**: ${source}\n**Query**: "${query}"\n**Name**: ${card[0]}\n**Price**: **${card[2]}**\n**URL**: ${card[1]}\n**Pod**: \`${POD_ORIGIN}\`\n\n**Image**: ${card[3]}`
+    );
+    try {
+      await saveItem(card);
+    } catch (e) {
+      console.error(`ERROR saving item: ${e}`);
+    }
+  }
+
+  private async fetchTokopediaProducts(query: string): Promise<NormalizedProduct[]> {
     const params = `device=desktop&ob=9&page=1&q=${encodeURIComponent(query)}&rows=200&safe_search=false&source=search&st=product&start=0`;
 
     try {
@@ -124,8 +134,14 @@ export class Scraper {
       const json = await res.json() as [{ data: { searchProductV5: { data: { products: GqlProduct[] } } } }];
       const products = json[0]?.data?.searchProductV5?.data?.products ?? [];
 
-      // Filter out ads
-      return products.filter((p) => !p.ads?.id);
+      return products
+        .filter((p) => !p.ads?.id)
+        .map((p): NormalizedProduct => ({
+          name: p.name,
+          url: p.url.split("?")[0]!,
+          price: p.price.text,
+          image: convertToPermanentUrl(p.mediaURL.image),
+        }));
     } catch (e) {
       console.error(`Fetch failed for query "${query}": ${e}`);
       return [];

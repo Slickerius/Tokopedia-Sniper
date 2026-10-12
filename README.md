@@ -1,8 +1,8 @@
 # Tokopedia Sniper Bot
 
-A project initiated by Slickerius, intended to assist in hunting for rare items on the Indonesian e-commerce marketplace Tokopedia, inspired by his endeavours in hunting for antique 70s cassette tapes.
+A project initiated by Slickerius, intended to assist in hunting for rare items on Indonesian e-commerce marketplaces, inspired by his endeavours in hunting for antique 70s cassette tapes.
 
-Sometimes certain items are just so rare that they're listed for only a very brief amount of time. This bot periodically queries Tokopedia's newest listings for a set of configured search queries and posts new findings to a Discord channel of your choosing.
+Sometimes certain items are just so rare that they're listed for only a very brief amount of time. This bot periodically queries Tokopedia and Shopee (via BigGo, since Shopee has no usable public search API) for a set of configured search queries and posts new findings to a Discord channel of your choosing.
 
 ![](https://cdn.discordapp.com/attachments/815844122673938453/1036559382428798986/unknown.png)
 
@@ -15,11 +15,12 @@ Tokopedia-Sniper/
 ├── bot/
 │   ├── src/
 │   │   ├── index.ts              # Entry point, env validation
-│   │   ├── types.ts              # Shared types (Card)
+│   │   ├── types.ts              # Shared types (Card, NormalizedProduct)
 │   │   ├── config.ts             # StaticConfig (env vars)
 │   │   ├── db.ts                 # MariaDB - items table, query queue
 │   │   ├── utils.ts              # Image URL normalisation
-│   │   ├── scraper.ts            # Tokopedia fetcher
+│   │   ├── scraper.ts            # Tokopedia fetcher, shared dedupe/post pipeline
+│   │   ├── biggo.ts              # Shopee fetcher via BigGo's RSC search payload
 │   │   ├── bot.ts                # Discord client, cron scheduler
 │   │   └── commands/
 │   │       ├── index.ts          # Command interface + CommandHandler registry
