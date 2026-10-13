@@ -36,6 +36,13 @@ export const initDb = async (): Promise<void> => {
         PRIMARY KEY (cycle, query)
       )
     `);
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS shopee_runs (
+        day BIGINT NOT NULL,
+        query VARCHAR(512) NOT NULL,
+        PRIMARY KEY (day, query)
+      )
+    `);
     console.log("Database initialized.");
   } finally {
     conn.end();
@@ -119,6 +126,30 @@ export const completeQuery = async (query: string, cycle: number): Promise<void>
       "UPDATE query_queue SET status = 'done' WHERE cycle = ? AND query = ?",
       [cycle, query]
     );
+  } finally {
+    conn.end();
+  }
+};
+
+// Shopee is scraped once a day per query, independent of the hourly Tokopedia cycle.
+export const hasShopeeRunToday = async (query: string, day: number): Promise<boolean> => {
+  const conn = await pool.getConnection();
+  try {
+    const res = await conn.query(
+      "SELECT 1 FROM shopee_runs WHERE day = ? AND query = ?",
+      [day, query]
+    );
+    return res.length > 0;
+  } finally {
+    conn.end();
+  }
+};
+
+export const markShopeeRan = async (query: string, day: number): Promise<void> => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query("INSERT IGNORE INTO shopee_runs (day, query) VALUES (?, ?)", [day, query]);
+    await conn.query("DELETE FROM shopee_runs WHERE day < ?", [day - 1]);
   } finally {
     conn.end();
   }

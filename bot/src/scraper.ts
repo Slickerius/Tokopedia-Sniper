@@ -1,6 +1,15 @@
 import type { TextChannel } from "discord.js";
 import { loadStaticConfig } from "./config";
-import { checkItem, saveItem, initQueue, claimQuery, completeQuery, reclaimStaleQueries } from "./db";
+import {
+  checkItem,
+  saveItem,
+  initQueue,
+  claimQuery,
+  completeQuery,
+  reclaimStaleQueries,
+  hasShopeeRunToday,
+  markShopeeRan,
+} from "./db";
 import { convertToPermanentUrl } from "./utils";
 import { fetchShopeeProducts } from "./biggo";
 import type { Card, NormalizedProduct } from "./types";
@@ -65,17 +74,26 @@ export class Scraper {
     const config = loadStaticConfig();
     console.log(`Scraping for query "${query}"...`);
 
-    const sources: [string, NormalizedProduct[]][] = [
-      ["Tokopedia", await this.fetchTokopediaProducts(query)],
-      ["Shopee", await fetchShopeeProducts(query)],
-    ];
-
-    for (const [source, products] of sources) {
-      console.log(`${source}: found ${products.length} items for "${query}".`);
-      for (const product of products) {
-        await this.processProduct(product, source, query, postChannel, config.BLACKLIST);
-      }
+    const tokopediaProducts = await this.fetchTokopediaProducts(query);
+    console.log(`Tokopedia: found ${tokopediaProducts.length} items for "${query}".`);
+    for (const product of tokopediaProducts) {
+      await this.processProduct(product, "Tokopedia", query, postChannel, config.BLACKLIST);
     }
+
+    // Shopee (via BigGo) is paginated and heavier on the upstream site, so it
+    // only runs once a day per query instead of every hourly cycle.
+    const day = Math.floor(Date.now() / 86400000);
+    if (await hasShopeeRunToday(query, day)) {
+      console.log(`Shopee: already ran today for "${query}", skipping.`);
+      return;
+    }
+
+    const shopeeProducts = await fetchShopeeProducts(query);
+    console.log(`Shopee: found ${shopeeProducts.length} items for "${query}".`);
+    for (const product of shopeeProducts) {
+      await this.processProduct(product, "Shopee", query, postChannel, config.BLACKLIST);
+    }
+    await markShopeeRan(query, day);
   }
 
   private async processProduct(
