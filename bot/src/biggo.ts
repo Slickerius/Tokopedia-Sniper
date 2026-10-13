@@ -6,8 +6,12 @@ import { sleep } from "./utils";
 // serves it through a Next.js RSC (React Server Components) response
 // instead of a plain JSON API.
 const BIGGO_ORIGIN = "https://biggo.id";
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36";
+// A full desktop browser UA string on this RSC route makes BigGo's edge return
+// a cached empty shell with no ssrData. A bare UA gets the real payload.
+const USER_AGENT = "Mozilla/5.0";
+// biggo.id refuses connections from the cluster's direct outbound IP, same as
+// Tokopedia's GQL endpoint, so this needs the same proxy.
+const BIGGO_PROXY = process.env.GQL_PROXY || undefined;
 
 // Independent of whatever total_page BigGo reports, so a bad or huge value
 // can never turn one query into an unbounded crawl.
@@ -106,6 +110,7 @@ async function fetchPage(query: string, page: number): Promise<BiggoSsrData | nu
   try {
     const res = await fetch(`${BIGGO_ORIGIN}${searchPath}?p=${page}`, {
       signal: AbortSignal.timeout(20000),
+      proxy: BIGGO_PROXY,
       headers: {
         "Rsc": "1",
         "Accept": "*/*",
